@@ -18,11 +18,20 @@ WAKE_PHRASES = [
 
 SAMPLE_RATE = 44100
 
+# Vosk (KaldiRecognizer) acumula memoria de forma continua mientras
+# procesa audio, incluso sin activaciones (~3.6MB/min medido en pruebas).
+# En vez de reiniciar todo el proceso (lo que cortaria la escucha unos
+# segundos cada vez), se recrea solo el objeto KaldiRecognizer cada
+# cierto tiempo, reutilizando el mismo Model ya cargado. El stream de
+# audio (RawInputStream) nunca se detiene, cero interrupcion real.
+RECOGNIZER_RESET_INTERVAL = 15  # segundos
+
 is_busy = False
 wake_detected = False
 
 model = vosk.Model(MODEL_PATH)
 rec = vosk.KaldiRecognizer(model, SAMPLE_RATE)
+last_recognizer_reset = time.time()
 
 print("Sistema listo. Esperando wake...")
 
@@ -93,4 +102,8 @@ with sd.RawInputStream(
             print("Volviendo a esperar wake")
             is_busy = False
         else:
+            if time.time() - last_recognizer_reset > RECOGNIZER_RESET_INTERVAL:
+                rec = vosk.KaldiRecognizer(model, SAMPLE_RATE)
+                last_recognizer_reset = time.time()
+                print("KaldiRecognizer recreado (mantenimiento de memoria)")
             time.sleep(0.1)
