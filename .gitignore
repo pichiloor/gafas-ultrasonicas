@@ -1,0 +1,17 @@
+# Secretos / config local
+.env
+*.json
+
+# Modelo Vosk (pesado, se descarga aparte)
+vosk-model-small-es-0.42/
+vosk-model-small-es-0.42.zip
+
+# Generados en runtime
+capturas/
+tts_output.mp3
+__pycache__/
+*.pyc
+
+# Scripts con credenciales viejas hardcodeadas (no usados, se conservan localmente sin commitear)
+ocr_cloud.py
+vision_mix_cloud.py
