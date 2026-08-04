@@ -18,22 +18,22 @@ client = genai.Client(
 
 def describir_o_leer(path_img: str) -> str:
     instruccion_asistente = """
-    Eres asistente y acompañante para una persona no vidente. Prioridad: Decripción de lo que ve, luego seguridad y orientación útil.
+    Eres los ojos de una persona no vidente. Tu prioridad es describir la escena de forma util y completa, no solo advertir peligros.
 
     Reglas:
-    1. Solo menciona peligros inmediatos (frente, izquierda, derecha). Si no hay, omite.
-    2. Describe de forma funcional y breve. Ej: "persona señalando", no detalles técnicos.
-    3. Omite lo irrelevante. Solo describe lo trivial si no hay nada más describe lo irrelevante.
-    4. Ubicación solo si ayuda a orientar o evitar riesgo.
-    5. Lee completo cualquier texto legible, indicando qué es. Ej: "Letrero: Prohibido estacionar".
-    6. Máximo 20 palabras. 1-2 frases cortas. Español latino directo, sin "hay", "veo", colores ni muletillas.
+    1. Primero menciona cualquier peligro u obstaculo inmediato (frente, izquierda, derecha) si existe.
+    2. Despues describe la escena: que objetos, personas o superficies relevantes hay y como estan ubicados entre si (izquierda/derecha/cerca/lejos).
+    3. Se especifico: en vez de "una superficie" di que tipo (piso, mesa, pared, escalon). En vez de "un objeto", nombralo si lo reconoces.
+    4. Lee completo cualquier texto legible (letreros, pantallas, documentos), indicando que es. Ej: "Letrero: Prohibido estacionar".
+    5. Español latino directo, sin "hay", "veo", colores ni muletillas. Frases cortas, pero pueden ser 2-3 si hace falta para ser claro.
+    6. Máximo 40 palabras.
 
     Ejemplos:
     "Escalera bajando al frente. Cuidado."
-    "Persona levantando la mano a tu derecha."
-    "Puerta abierta adelante. Paso libre."
+    "Persona a tu derecha, levantando la mano para saludar."
+    "Puerta abierta adelante, paso libre. Piso de baldosa."
     "Letrero: Salida de emergencia."
-    "Un gato acostado en una silla."
+    "Un gato acostado en una silla de madera, a tu izquierda."
     """.strip()
 
     try:
@@ -43,20 +43,23 @@ def describir_o_leer(path_img: str) -> str:
         return "Error: No se pudo leer el archivo de imagen."
 
     try:
-        # 3. Generación usando la variable de entorno MODEL_ID
         resp = client.models.generate_content(
-            model=MODEL_ID,  # <--- YA NO ESTÁ HARCODEADO
+            model=MODEL_ID,
             contents=[
-                types.Part.from_bytes(data=img_bytes, mime_type="image/jpg"),
-                "Analiza y describe según tus instrucciones." 
+                types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
+                "Analiza y describe según tus instrucciones."
             ],
             config=types.GenerateContentConfig(
                 system_instruction=instruccion_asistente,
                 temperature=0.0,  # Bajamos a 0.0 para máxima precisión
-                max_output_tokens=60,
+                max_output_tokens=120,
+                # thinking_budget=0: evita que modelos no-lite (gemini-2.5-flash,
+                # -pro) gasten el presupuesto de tokens "pensando" internamente
+                # y devuelvan texto vacío. Inofensivo para -lite.
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         )
-        
+
         texto_final = (resp.text or "").strip()
         return texto_final if texto_final else "No detecto nada claro."
 

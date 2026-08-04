@@ -2,8 +2,6 @@
 
 from camara import tomar_foto
 #from vision_mix_cloud import analizar_imagen_cloud as extraer_texto
-from vertex_context_vision import describir_o_leer
-from tts_cloud import hablar
 import os
 from diccionario import traducir
 import subprocess
@@ -15,6 +13,16 @@ def play_sound(path):
 
 #hablar("¡Tomando foto!")
 def ejecutar():
+    # Imports diferidos: vertex_context_vision y tts_cloud cargan SDKs
+    # pesados de Google (grpc/protobuf). Se importan aqui (no al tope del
+    # modulo) para que ese peso solo se cargue en RAM cuando de verdad se
+    # necesita (primera activacion), no todo el tiempo que el servicio
+    # esta solo escuchando el wake word. Python cachea el import, asi que
+    # en llamadas siguientes no hay costo extra (el cliente persistente
+    # de cada modulo se sigue creando una sola vez).
+    from vertex_context_vision import describir_o_leer
+    from tts_cloud import hablar
+
     ruta = tomar_foto()
 
     if not ruta or not os.path.exists(ruta):
