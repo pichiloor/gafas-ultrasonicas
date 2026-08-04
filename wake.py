@@ -24,7 +24,7 @@ SAMPLE_RATE = 44100
 # segundos cada vez), se recrea solo el objeto KaldiRecognizer cada
 # cierto tiempo, reutilizando el mismo Model ya cargado. El stream de
 # audio (RawInputStream) nunca se detiene, cero interrupcion real.
-RECOGNIZER_RESET_INTERVAL = 15  # segundos
+RECOGNIZER_RESET_INTERVAL = 15 * 60  # segundos
 
 is_busy = False
 wake_detected = False
