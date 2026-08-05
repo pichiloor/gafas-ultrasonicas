@@ -3,6 +3,7 @@ import sounddevice as sd
 import json
 import os
 import time
+import threading
 import uuid
 from datetime import datetime
 from boton import ejecutar
@@ -35,6 +36,11 @@ wake_detected = False
 
 model = vosk.Model(MODEL_PATH)
 rec = vosk.KaldiRecognizer(model, SAMPLE_RATE)
+# Protege `rec`: el callback de audio (hilo de PortAudio) lo lee/muta
+# via AcceptWaveform()/Result(), y el loop principal lo reemplaza por
+# uno nuevo cada RECOGNIZER_RESET_INTERVAL. Sin lock, un wake dicho
+# justo en el momento del reemplazo podia perderse.
+rec_lock = threading.Lock()
 last_recognizer_reset = time.time()
 
 log.info("Sistema listo. Esperando wake...")
@@ -56,10 +62,10 @@ def callback(indata, frames, time_info, status):
 
     audio_bytes = bytes(indata)
 
-    if not rec.AcceptWaveform(audio_bytes):
-        return
-
-    result = json.loads(rec.Result())
+    with rec_lock:
+        if not rec.AcceptWaveform(audio_bytes):
+            return
+        result = json.loads(rec.Result())
     text = result.get("text", "").lower().strip()
 
     if not text:
@@ -103,14 +109,17 @@ with sd.RawInputStream(
 
             log.info(f"[{cycle_id}] Tiempo total ciclo: {time.time() - start_time:.2f}s")
 
-            rec.Reset()
+            with rec_lock:
+                rec.Reset()
             time.sleep(1.0)
 
             log.info("Volviendo a esperar wake")
             is_busy = False
         else:
             if time.time() - last_recognizer_reset > RECOGNIZER_RESET_INTERVAL:
-                rec = vosk.KaldiRecognizer(model, SAMPLE_RATE)
+                nuevo_rec = vosk.KaldiRecognizer(model, SAMPLE_RATE)
+                with rec_lock:
+                    rec = nuevo_rec
                 last_recognizer_reset = time.time()
                 log.info("KaldiRecognizer recreado (mantenimiento de memoria)")
             time.sleep(0.1)

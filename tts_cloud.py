@@ -1,10 +1,9 @@
 #!/usr/bin/python3
 import os
 import time
-from datetime import datetime
 from google.cloud import texttospeech
 import subprocess
-from logger import get_logger, carpeta_del_dia
+from logger import get_logger, carpeta_del_dia, nombre_archivo
 
 log = get_logger("tts")
 
@@ -41,9 +40,7 @@ def hablar(texto, cycle_id=None):
         return
 
     carpeta_dia = carpeta_del_dia()
-    # Mismo cycle_id que la foto de este ciclo, para poder relacionarlos
-    # sin adivinar por horario; si no viene (uso manual), cae al propio.
-    nombre = cycle_id if cycle_id else "test_" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    nombre = nombre_archivo(cycle_id)
     filename = os.path.join(carpeta_dia, f"{nombre}.mp3")
 
     with open(filename, "wb") as out:
