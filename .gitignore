@@ -6,9 +6,9 @@
 vosk-model-small-es-0.42/
 vosk-model-small-es-0.42.zip
 
-# Generados en runtime
-capturas/
-tts_output.mp3
+# Generados en runtime: fotos, audio TTS y logs diarios
+logs/
+
 __pycache__/
 *.pyc
 

@@ -1,45 +1,54 @@
 #!/usr/bin/python3
+import os
+import time
+from datetime import datetime
 from google.cloud import texttospeech
 import subprocess
+from logger import get_logger, carpeta_del_dia
+
+log = get_logger("tts")
 
 # Cliente TTS persistente: se crea una sola vez al importar este modulo
-# (cuando arranca wake.py) en vez de recrearlo en cada llamada a hablar().
-# Crear el cliente toma ~1-1.3s (init de auth/canal); reutilizarlo ahorra
-# ese tiempo en cada interaccion. Mismo patron que la camara persistente
-# y el cliente de Vertex (vertex_context_vision.py).
+# en vez de recrearlo en cada llamada a hablar().
 client = texttospeech.TextToSpeechClient()
 
-# Configuracion de voz (no cambia entre llamadas, se arma una sola vez)
 voice = texttospeech.VoiceSelectionParams(
     language_code="es-US",
     name="es-US-Chirp3-HD-Aoede"   # Voz femenina, latina neutral
 )
 
-# Configuracion de salida MP3
 audio_config = texttospeech.AudioConfig(
     audio_encoding=texttospeech.AudioEncoding.MP3
 )
 
-def hablar(texto):
-    # Limpieza del texto
+
+def hablar(texto, cycle_id=None):
     texto = texto.strip()
     if len(texto) < 2:
         texto = "No se detecto texto."
 
-    # Texto a convertir
     synthesis_input = texttospeech.SynthesisInput(text=texto)
 
-    # Solicitud a Google
-    response = client.synthesize_speech(
-        input=synthesis_input,
-        voice=voice,
-        audio_config=audio_config
-    )
+    t0 = time.time()
+    try:
+        response = client.synthesize_speech(
+            input=synthesis_input,
+            voice=voice,
+            audio_config=audio_config
+        )
+    except Exception as e:
+        log.error(f'[{cycle_id}] Fallo TTS: {e} -- texto: "{texto}"')
+        return
 
-    # Archivo temporal MP3
-    filename = "/home/pichiloor/Documents/tts_output.mp3"
+    carpeta_dia = carpeta_del_dia()
+    # Mismo cycle_id que la foto de este ciclo, para poder relacionarlos
+    # sin adivinar por horario; si no viene (uso manual), cae al propio.
+    nombre = cycle_id if cycle_id else "test_" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = os.path.join(carpeta_dia, f"{nombre}.mp3")
+
     with open(filename, "wb") as out:
         out.write(response.audio_content)
 
-    # Reproducir con mpg123
+    log.info(f'[{cycle_id}] OK ({time.time()-t0:.2f}s): "{texto}" -> {filename}')
+
     subprocess.run(["mpg123", filename])

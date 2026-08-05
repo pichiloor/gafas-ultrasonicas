@@ -3,8 +3,13 @@ import sounddevice as sd
 import json
 import os
 import time
+import uuid
+from datetime import datetime
 from boton import ejecutar
 import subprocess
+from logger import get_logger
+
+log = get_logger("wake")
 
 MODEL_PATH = "/home/pichiloor/Documents/vosk-model-small-es-0.42"
 WAKE_SOUND = "/home/pichiloor/Documents/woke.mp3"
@@ -19,11 +24,10 @@ WAKE_PHRASES = [
 SAMPLE_RATE = 44100
 
 # Vosk (KaldiRecognizer) acumula memoria de forma continua mientras
-# procesa audio, incluso sin activaciones (~3.6MB/min medido en pruebas).
-# En vez de reiniciar todo el proceso (lo que cortaria la escucha unos
-# segundos cada vez), se recrea solo el objeto KaldiRecognizer cada
-# cierto tiempo, reutilizando el mismo Model ya cargado. El stream de
-# audio (RawInputStream) nunca se detiene, cero interrupcion real.
+# procesa audio, incluso sin activaciones (~3.6MB/min medido). En vez
+# de reiniciar todo el proceso (cortaria la escucha unos segundos), se
+# recrea solo el objeto KaldiRecognizer cada cierto tiempo, reutilizando
+# el mismo Model ya cargado. El stream de audio nunca se detiene.
 RECOGNIZER_RESET_INTERVAL = 15 * 60  # segundos
 
 is_busy = False
@@ -33,21 +37,19 @@ model = vosk.Model(MODEL_PATH)
 rec = vosk.KaldiRecognizer(model, SAMPLE_RATE)
 last_recognizer_reset = time.time()
 
-print("Sistema listo. Esperando wake...")
+log.info("Sistema listo. Esperando wake...")
 
-# def play_sound(path):
-#     os.system(f"mpg123 -q {path}")
 def play_sound(path):
     subprocess.Popen(["mpg123", "-q", path])
 
-def execute_boton():
-    ejecutar()
+def execute_boton(cycle_id):
+    ejecutar(cycle_id)
 
 def callback(indata, frames, time_info, status):
     global is_busy, wake_detected, rec
 
     if status:
-        print(status)
+        log.warning(f"Status de audio: {status}")
 
     if is_busy:
         return
@@ -63,11 +65,11 @@ def callback(indata, frames, time_info, status):
     if not text:
         return
 
-    print("Escuchado:", text)
+    log.info(f"Escuchado: {text}")
 
     for wake in WAKE_PHRASES:
         if wake in text:
-            print("Wake detectado")
+            log.info("Wake detectado")
             is_busy = True
             wake_detected = True
             return
@@ -83,27 +85,32 @@ with sd.RawInputStream(
         if wake_detected:
             wake_detected = False
 
+            # ID de ciclo: se genera una sola vez por activacion y se usa
+            # para nombrar la foto, el audio TTS, y etiquetar cada linea
+            # de log de este ciclo -- asi se puede buscar ese ID y ver
+            # todo lo relacionado (foto, respuesta de Vertex, audio) sin
+            # tener que adivinar por cercania de horarios en el log.
+            cycle_id = datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:4]
+
             start_time = time.time()
 
             play_sound(WAKE_SOUND)
 
-            #time.sleep(0.5)
-
-            print("Ejecutando boton.py")
-            execute_boton()
+            log.info(f"[{cycle_id}] Ejecutando boton.py")
+            execute_boton(cycle_id)
 
             play_sound(SLEEP_SOUND)
 
-            print(f"Tiempo total ciclo: {time.time() - start_time:.2f}s")
+            log.info(f"[{cycle_id}] Tiempo total ciclo: {time.time() - start_time:.2f}s")
 
             rec.Reset()
             time.sleep(1.0)
 
-            print("Volviendo a esperar wake")
+            log.info("Volviendo a esperar wake")
             is_busy = False
         else:
             if time.time() - last_recognizer_reset > RECOGNIZER_RESET_INTERVAL:
                 rec = vosk.KaldiRecognizer(model, SAMPLE_RATE)
                 last_recognizer_reset = time.time()
-                print("KaldiRecognizer recreado (mantenimiento de memoria)")
+                log.info("KaldiRecognizer recreado (mantenimiento de memoria)")
             time.sleep(0.1)
