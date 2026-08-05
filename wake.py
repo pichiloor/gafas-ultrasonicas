@@ -45,6 +45,29 @@ last_recognizer_reset = time.time()
 
 log.info("Sistema listo. Esperando wake...")
 
+
+def _precargar_modulos_pesados():
+    """vertex_context_vision.py y tts_cloud.py crean sus clientes de
+    Google (genai.Client, TextToSpeechClient) al importarse -- boton.py
+    los importa recien dentro de ejecutar() para no gastar esa RAM si
+    el servicio nunca llega a usarlos, pero eso significa que la
+    PRIMERA activacion real paga el costo del import + conexion
+    (~14s medido). Se precargan aca en un hilo de fondo apenas arranca
+    el servicio, para que ese costo caiga durante el boot (nadie
+    esperando) y no en la primera vez que alguien dice la wake word.
+    Import es thread-safe: si una activacion real llega antes de que
+    esto termine, simplemente espera a que este hilo lo complete."""
+    try:
+        import vertex_context_vision
+        import tts_cloud
+        log.info("Modulos de Vertex/TTS precargados en background")
+    except Exception as e:
+        log.warning(f"No se pudieron precargar Vertex/TTS: {e}")
+
+
+threading.Thread(target=_precargar_modulos_pesados, daemon=True).start()
+
+
 def play_sound(path):
     subprocess.Popen(["mpg123", "-q", path])
 
