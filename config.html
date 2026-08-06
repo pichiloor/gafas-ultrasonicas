@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gafas ultrasónicas - Configuración</title>
+<style>
+  :root {
+    --bg: #eef1f6;
+    --card: #ffffff;
+    --border: #e2e6ec;
+    --text: #1f2937;
+    --label: #6b7280;
+    --accent: #3f7cf0;
+    --accent-dark: #2f63cc;
+    --ok-bg: #e9f9ee;
+    --ok-text: #15803d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 16px;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; }
+  .encabezado { display: flex; align-items: center; gap: 10px; padding: 6px 2px 4px; }
+  .encabezado svg { flex-shrink: 0; }
+  .encabezado h1 { font-size: 1.15rem; margin: 0; font-weight: 600; flex: 1; }
+  a.logout {
+    color: var(--label);
+    font-size: 0.82rem;
+    text-decoration: none;
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: var(--card);
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(20, 30, 60, 0.05);
+    padding: 20px;
+    margin-top: 14px;
+  }
+  label { display: block; margin: 14px 0 6px; font-size: 0.85rem; color: var(--label); font-weight: 500; }
+  label:first-child { margin-top: 0; }
+  small { color: #9aa1ac; display: block; margin-top: 5px; font-size: 0.78rem; }
+  input[type=text], input[type=number], select, textarea {
+    width: 100%;
+    padding: 11px 12px;
+    border-radius: 10px;
+    border: 1px solid #d5dae3;
+    background: #f9fafb;
+    color: var(--text);
+    font-size: 1rem;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); background: #fff; }
+  textarea { resize: vertical; min-height: 90px; }
+  input[type=range] {
+    width: 100%;
+    padding: 0;
+    background: transparent;
+    accent-color: var(--accent);
+    height: 28px;
+  }
+  .slider-marcas {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: #9aa1ac;
+    padding: 0 2px;
+    margin-top: -4px;
+  }
+  button {
+    width: 100%;
+    margin-top: 22px;
+    padding: 13px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:active { background: var(--accent-dark); }
+  .mensaje {
+    background: var(--ok-bg);
+    color: var(--ok-text);
+    padding: 10px 14px;
+    border-radius: 10px;
+    margin-top: 14px;
+    font-size: 0.88rem;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="encabezado">
+    <svg width="34" height="18" viewBox="0 0 140 70" xmlns="http://www.w3.org/2000/svg">
+      <g fill="none" stroke="#3f7cf0" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="40" cy="38" r="26"/>
+        <circle cx="100" cy="38" r="26"/>
+        <path d="M66 34 Q70 28 74 34"/>
+        <path d="M14 30 L2 24"/>
+        <path d="M126 30 L138 24"/>
+      </g>
+    </svg>
+    <h1>Configuración</h1>
+    <a class="logout" href="{{ url_for('logout') }}">Salir</a>
+  </div>
+
+  {% if mensaje %}<div class="mensaje">{{ mensaje }}</div>{% endif %}
+
+  <form method="post">
+    <div class="card">
+      <label for="nombre_usuario">Nombre</label>
+      <input type="text" id="nombre_usuario" name="nombre_usuario" value="{{ cfg.nombre_usuario }}" required>
+
+      <label for="saludo">Saludo</label>
+      <input type="text" id="saludo" name="saludo" value="{{ cfg.saludo }}" required>
+      <small>Usá {nombre} donde querés que aparezca el nombre. Ej: ¡Hola, {nombre}!</small>
+    </div>
+
+    <div class="card">
+      <label for="genero_voz">Voz</label>
+      <select id="genero_voz" name="genero_voz">
+        {% for v in voces %}
+        <option value="{{ v }}" {% if cfg.genero_voz == v %}selected{% endif %}>{{ v|capitalize }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="velocidad_habla">Velocidad de habla: <strong id="velocidad_texto">{{ velocidad_label }}</strong></label>
+      <input type="range" id="velocidad_habla" name="velocidad_habla" value="{{ cfg.velocidad_habla }}"
+             min="{{ velocidad_presets[0][0] }}" max="{{ velocidad_presets[-1][0] }}" step="0.25"
+             oninput="mostrarVelocidad(this.value)">
+      <div class="slider-marcas">
+        {% for valor, nombre in velocidad_presets %}<span>{{ nombre }}</span>{% endfor %}
+      </div>
+
+      <label for="nivel_detalle">Nivel de detalle en las descripciones</label>
+      <select id="nivel_detalle" name="nivel_detalle">
+        {% for n in niveles %}
+        <option value="{{ n }}" {% if cfg.nivel_detalle == n %}selected{% endif %}>{{ n|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="card">
+      <label for="frases_activacion">Frases de activación (una por línea, máximo 5)</label>
+      <textarea id="frases_activacion" name="frases_activacion">{{ cfg.frases_activacion|join('\n') }}</textarea>
+    </div>
+
+    <button type="submit">Guardar y aplicar</button>
+  </form>
+</div>
+<script>
+  // Mapea el valor del slider al nombre del preset mas cercano -- misma
+  // tabla que VELOCIDAD_PRESETS en config_web.py.
+  var PRESETS_VELOCIDAD = {{ velocidad_presets|tojson }};
+  function mostrarVelocidad(valor) {
+    valor = parseFloat(valor);
+    var mejor = PRESETS_VELOCIDAD[0];
+    for (var i = 0; i < PRESETS_VELOCIDAD.length; i++) {
+      if (Math.abs(PRESETS_VELOCIDAD[i][0] - valor) < Math.abs(mejor[0] - valor)) mejor = PRESETS_VELOCIDAD[i];
+    }
+    document.getElementById('velocidad_texto').textContent = mejor[1];
+  }
+</script>
+</body>
+</html>
