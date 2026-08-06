@@ -24,7 +24,7 @@ SAMPLE_RATE = 44100
 # de reiniciar todo el proceso (cortaria la escucha unos segundos), se
 # recrea solo el objeto KaldiRecognizer cada cierto tiempo, reutilizando
 # el mismo Model ya cargado. El stream de audio nunca se detiene.
-RECOGNIZER_RESET_INTERVAL = 15 * 60  # segundos
+RECOGNIZER_RESET_INTERVAL = 5 * 60  # segundos
 
 is_busy = False
 wake_detected = False
