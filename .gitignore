@@ -1,6 +1,7 @@
 # Secretos / config local
 .env
 *.json
+!config.example.json
 
 # Modelo Vosk (pesado, se descarga aparte)
 vosk-model-small-es-0.42/
@@ -8,6 +9,8 @@ vosk-model-small-es-0.42.zip
 
 # Generados en runtime: fotos, audio TTS y logs diarios
 logs/
+saludo.mp3
+saludo.hash
 
 __pycache__/
 *.pyc

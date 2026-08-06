@@ -1,0 +1,8 @@
+{
+  "nombre_usuario": "Usuario",
+  "saludo": "¡Hola, {nombre}!",
+  "velocidad_habla": 1.0,
+  "genero_voz": "femenino",
+  "frases_activacion": ["hola gafas", "oye gafas", "hey gafas"],
+  "nivel_detalle": "detallado"
+}

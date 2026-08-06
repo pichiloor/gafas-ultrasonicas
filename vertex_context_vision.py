@@ -4,12 +4,18 @@ import time
 from google import genai
 from google.genai import types
 from logger import get_logger
+from config import MAX_PALABRAS
 
 log = get_logger("vertex")
 
 PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT")
 LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
 MODEL_ID = os.environ.get("VERTEX_GEMINI_MODEL", "gemini-2.5-flash-lite")
+
+# Margen ~3x sobre las palabras pedidas (mismo ratio que 40 palabras/120
+# tokens, ya probado en produccion) para dejar lugar a tokens de puntuacion
+# y variacion del modelo sin cortar la respuesta.
+MAX_OUTPUT_TOKENS = max(60, MAX_PALABRAS * 3)
 
 client = genai.Client(
     vertexai=True,
@@ -19,7 +25,7 @@ client = genai.Client(
 
 
 def describir_o_leer(path_img: str, cycle_id=None) -> str:
-    instruccion_asistente = """
+    instruccion_asistente = f"""
     Eres los ojos de una persona no vidente. Tu prioridad es describir la escena de forma util y completa, no solo advertir peligros.
 
     Reglas:
@@ -28,7 +34,7 @@ def describir_o_leer(path_img: str, cycle_id=None) -> str:
     3. Se especifico: en vez de "una superficie" di que tipo (piso, mesa, pared, escalon). En vez de "un objeto", nombralo si lo reconoces.
     4. Lee completo cualquier texto legible (letreros, pantallas, documentos), indicando que es. Ej: "Letrero: Prohibido estacionar".
     5. Español latino directo, sin "hay", "veo", colores ni muletillas. Frases cortas, pero pueden ser 2-3 si hace falta para ser claro.
-    6. Máximo 40 palabras.
+    6. Máximo {MAX_PALABRAS} palabras.
 
     Ejemplos:
     "Escalera bajando al frente. Cuidado."
@@ -56,7 +62,7 @@ def describir_o_leer(path_img: str, cycle_id=None) -> str:
             config=types.GenerateContentConfig(
                 system_instruction=instruccion_asistente,
                 temperature=0.0,
-                max_output_tokens=120,
+                max_output_tokens=MAX_OUTPUT_TOKENS,
                 thinking_config=types.ThinkingConfig(thinking_budget=0),
             ),
         )

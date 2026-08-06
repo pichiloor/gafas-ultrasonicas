@@ -9,18 +9,13 @@ from datetime import datetime
 from boton import ejecutar
 import subprocess
 from logger import get_logger
+from config import FRASES_ACTIVACION as WAKE_PHRASES
 
 log = get_logger("wake")
 
 MODEL_PATH = "/home/pichiloor/Documents/vosk-model-small-es-0.42"
 WAKE_SOUND = "/home/pichiloor/Documents/woke.mp3"
 SLEEP_SOUND = "/home/pichiloor/Documents/sleep.mp3"
-
-WAKE_PHRASES = [
-    "hola gafas",
-    "oye gafas",
-    "hey gafas"
-]
 
 SAMPLE_RATE = 44100
 
@@ -63,9 +58,15 @@ def _precargar_modulos_pesados():
         log.info("Modulos de Vertex/TTS precargados en background")
     except Exception as e:
         log.warning(f"No se pudieron precargar Vertex/TTS: {e}")
+        return
 
-
-threading.Thread(target=_precargar_modulos_pesados, daemon=True).start()
+    try:
+        from saludo import asegurar_saludo
+        ruta_saludo = asegurar_saludo()
+        if ruta_saludo:
+            play_sound(ruta_saludo)
+    except Exception as e:
+        log.warning(f"No se pudo reproducir el saludo: {e}")
 
 
 def play_sound(path):
@@ -102,6 +103,8 @@ def callback(indata, frames, time_info, status):
             is_busy = True
             wake_detected = True
             return
+
+threading.Thread(target=_precargar_modulos_pesados, daemon=True).start()
 
 with sd.RawInputStream(
     samplerate=SAMPLE_RATE,

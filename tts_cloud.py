@@ -4,6 +4,7 @@ import time
 from google.cloud import texttospeech
 import subprocess
 from logger import get_logger, carpeta_del_dia, nombre_archivo
+from config import VOZ_NOMBRE, VELOCIDAD_HABLA
 
 log = get_logger("tts")
 
@@ -13,11 +14,12 @@ client = texttospeech.TextToSpeechClient()
 
 voice = texttospeech.VoiceSelectionParams(
     language_code="es-US",
-    name="es-US-Chirp3-HD-Aoede"   # Voz femenina, latina neutral
+    name=VOZ_NOMBRE   # es-US-Chirp3-HD-<Aoede|Puck>, segun genero_voz en config.json
 )
 
 audio_config = texttospeech.AudioConfig(
-    audio_encoding=texttospeech.AudioEncoding.MP3
+    audio_encoding=texttospeech.AudioEncoding.MP3,
+    speaking_rate=VELOCIDAD_HABLA
 )
 
 
