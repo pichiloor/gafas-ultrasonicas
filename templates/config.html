@@ -143,6 +143,41 @@
     line-height: 1;
     padding: 2px 4px;
   }
+  /* Lista de modos: es informativa, no editable -- a proposito NO usa el
+     estilo de .chip (esos parecen botones removibles) para no confundir
+     con la seccion de abajo, que si se edita. */
+  .menu-modos { list-style: none; margin: 14px 0 0; padding: 0; counter-reset: modo; }
+  .menu-modo-item {
+    counter-increment: modo;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .menu-modo-item:first-child { padding-top: 0; }
+  .menu-modo-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .menu-modo-item::before {
+    content: counter(modo);
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #eef2ff;
+    color: var(--accent-dark);
+    font-size: 0.76rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .menu-modo-texto { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .menu-modo-frase {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--text);
+  }
+  .menu-modo-desc { font-size: 0.85rem; color: var(--label); }
   .agregar-frase { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
   .agregar-frase input { flex: 1; }
   .agregar-frase button {
@@ -228,8 +263,24 @@
     </div>
 
     <div class="card card-ancho">
-      <label>Frases de activación (máximo 5)</label>
-      <div id="chips_frases" class="chips"></div>
+      <label>Palabras reservadas para cambiar de modo</label>
+      <small>El menú de comandos de las gafas: siempre funcionan igual, no se editan desde aquí.</small>
+      <ol class="menu-modos">
+        {% for modo, frases in modos_reservados.items() %}
+        <li class="menu-modo-item">
+          <div class="menu-modo-texto">
+            <span class="menu-modo-frase">{{ frases|map('capitalize')|join(' · ') }}</span>
+            <span class="menu-modo-desc">{{ modos_descripciones.get(modo, '') }}</span>
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+    </div>
+
+    <div class="card card-ancho">
+      <label>Frases de saludo (máximo 5)</label>
+      <small>Al decir cualquiera de estas, las gafas solo responden con el saludo — así sabes que te está escuchando, sin tomar foto.</small>
+      <div id="chips_frases" class="chips" style="margin-top: 10px;"></div>
       <div id="agregar_wrap" class="agregar-frase">
         <input type="text" id="nueva_frase" placeholder="Ej: hola gafas">
         <button type="button" onclick="agregarFrase()" aria-label="Agregar frase">+</button>
@@ -258,6 +309,16 @@
   // request.form.getlist(). Maximo 5, sin duplicados, en minuscula.
   var MAX_FRASES = 5;
   var frases = {{ cfg.frases_activacion|tojson }};
+
+  // Mismas palabras reservadas que config.MODOS_RESERVADOS, normalizadas
+  // igual que config.normalizar() (minusculas, sin tildes/comas) -- para
+  // avisar en el momento si el usuario intenta usar una como saludo, en
+  // vez de que el backend la descarte en silencio al guardar.
+  var RESERVADAS = {{ frases_reservadas_flat|tojson }};
+  function normalizar(t) {
+    return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/,/g, ' ').trim().replace(/\s+/g, ' ');
+  }
+  var RESERVADAS_NORM = RESERVADAS.map(normalizar);
 
   function renderFrases() {
     var cont = document.getElementById('chips_frases');
@@ -294,6 +355,10 @@
     var input = document.getElementById('nueva_frase');
     var val = input.value.trim().toLowerCase();
     if (!val || frases.length >= MAX_FRASES || frases.indexOf(val) !== -1) { input.value = ''; return; }
+    if (RESERVADAS_NORM.indexOf(normalizar(val)) !== -1) {
+      alert('Esa frase está reservada para cambiar de modo y no se puede usar como saludo.');
+      return;
+    }
     frases.push(val);
     input.value = '';
     renderFrases();

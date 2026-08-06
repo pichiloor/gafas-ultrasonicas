@@ -14,7 +14,7 @@ from functools import wraps
 from flask import Flask, request, redirect, url_for, session, render_template
 
 from logger import get_logger
-from config import CONFIG_PATH, VOCES, NIVELES_DETALLE, _validar
+from config import CONFIG_PATH, VOCES, NIVELES_DETALLE, _validar, MODOS_RESERVADOS, DESCRIPCIONES_MODOS
 
 log = get_logger("config_web")
 
@@ -122,6 +122,12 @@ def index():
         velocidad_presets=VELOCIDAD_PRESETS,
         velocidad_label=etiqueta_velocidad(cfg["velocidad_habla"]),
         mensaje=mensaje,
+        modos_reservados=MODOS_RESERVADOS,
+        modos_descripciones=DESCRIPCIONES_MODOS,
+        # Todas las frases reservadas en una sola lista, sin agrupar por
+        # modo -- el JS del panel solo necesita saber "esta reservada o
+        # no", no a que modo pertenece cada una.
+        frases_reservadas_flat=[f for frases in MODOS_RESERVADOS.values() for f in frases],
     )
 
 
