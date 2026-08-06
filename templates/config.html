@@ -50,6 +50,12 @@
       align-items: stretch;
     }
     .grid-2col .card { display: flex; flex-direction: column; }
+    /* Variante para pares de tarjetas con contenido muy distinto en
+       altura (Red WiFi vs. Estado de audio) -- sin esto, .grid-2col
+       estira la mas corta para igualar a la mas alta, dejando un hueco
+       vacio raro. Con align-items:start cada una queda con su alto
+       natural, alineadas arriba. */
+    .grid-2col-topo { align-items: start; }
     .logo-tes-chico { height: 64px; }
   }
   .titulo-grupo {
@@ -83,7 +89,7 @@
   label { display: block; margin: 14px 0 6px; font-size: 0.85rem; color: var(--label); font-weight: 500; }
   label:first-child, .titulo-grupo + label { margin-top: 0; }
   small { color: #9aa1ac; display: block; margin-top: 5px; font-size: 0.78rem; }
-  input[type=text], input[type=number], select, textarea {
+  input[type=text], input[type=number], input[type=password], select, textarea {
     width: 100%;
     padding: 11px 12px;
     border-radius: 10px;
@@ -203,6 +209,62 @@
     margin-top: 14px;
     font-size: 0.88rem;
   }
+  select {
+    width: 100%;
+    padding: 11px 12px;
+    border-radius: 10px;
+    border: 1px solid #d5dae3;
+    background: #f9fafb;
+    color: var(--text);
+    font-size: 1rem;
+    font-family: inherit;
+  }
+  select:focus { outline: none; border-color: var(--accent); background: #fff; }
+  .btn-secundario {
+    background: #fff;
+    color: var(--text);
+    border: 1px solid #d5dae3;
+  }
+  .btn-secundario:active { background: #f3f4f6; }
+  .btn-secundario:disabled { color: #9aa1ac; cursor: not-allowed; }
+  details.agregar-red-toggle {
+    margin-top: 18px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+  details.agregar-red-toggle summary {
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--accent-dark);
+    list-style: none;
+  }
+  details.agregar-red-toggle summary::-webkit-details-marker { display: none; }
+  details.agregar-red-toggle[open] summary { margin-bottom: 4px; }
+  .link-recargar {
+    display: inline-block;
+    margin-top: 14px;
+    font-size: 0.82rem;
+    color: var(--label);
+    text-decoration: none;
+  }
+  .audio-estado { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+  .audio-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #f9fafb;
+  }
+  .audio-icono { font-size: 1.3rem; flex-shrink: 0; }
+  .audio-info { flex: 1; min-width: 0; }
+  .audio-nombre { font-weight: 600; font-size: 0.92rem; }
+  .audio-sub { font-size: 0.78rem; color: var(--label); margin-top: 2px; }
+  .audio-punto { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .audio-punto-ok { background: var(--verde); }
+  .audio-punto-off { background: #d1d5db; }
 </style>
 </head>
 <body>
@@ -290,6 +352,87 @@
 
     <button type="submit">Guardar y aplicar</button>
   </form>
+
+  <div class="grid-2col grid-2col-topo">
+  <div class="card">
+    <h2 class="titulo-grupo">Red WiFi</h2>
+    <small>La marcada como "Principal" está protegida: no se puede editar ni eliminar desde acá, para no perder la conexión. Las demás son respaldo — se usan solo si la principal no está disponible.</small>
+
+    <label for="red_select">Conexiones guardadas</label>
+    <select id="red_select" onchange="actualizarAccionRed()">
+      {% if red_principal %}
+      <option value="{{ red_principal }}" data-principal="1">{{ red_principal }} — Principal, conectada ahora</option>
+      {% endif %}
+      {% for r in otras_redes %}
+      <option value="{{ r.nombre }}">{{ r.nombre }} — Respaldo</option>
+      {% endfor %}
+      {% if not red_principal and not otras_redes %}
+      <option value="" disabled selected>No hay redes guardadas</option>
+      {% endif %}
+    </select>
+
+    <small id="red_principal_aviso" style="display:none;">Esta es tu red principal — protegida, no se puede editar ni eliminar desde acá.</small>
+
+    <form method="post" action="{{ url_for('red_modificar') }}" id="form_editar_red">
+      <input type="hidden" name="nombre_actual" id="red_editar_nombre_actual">
+      <label for="red_editar_ssid">Nombre de la red (SSID)</label>
+      <input type="text" id="red_editar_ssid" name="ssid" maxlength="32" required>
+      <label for="red_editar_password">Contraseña nueva</label>
+      <input type="password" id="red_editar_password" name="password" placeholder="Dejar vacío para no cambiarla" maxlength="63">
+      <button type="submit">Guardar cambios</button>
+    </form>
+
+    <form method="post" action="{{ url_for('red_eliminar') }}" id="form_eliminar_red" onsubmit="return confirm('¿Eliminar la red \'' + document.getElementById('red_select').value + '\'?');">
+      <input type="hidden" name="nombre" id="red_eliminar_nombre">
+      <button type="submit" id="btn_eliminar_red" class="btn-secundario">Eliminar esta red</button>
+    </form>
+
+    <details class="agregar-red-toggle">
+      <summary>+ Agregar una red nueva</summary>
+      <form method="post" action="{{ url_for('red_agregar') }}">
+        <label for="red_ssid">Nombre de la red (SSID)</label>
+        <input type="text" id="red_ssid" name="ssid" list="redes_visibles_lista" placeholder="Elegí una detectada o escribí el nombre" maxlength="32" required>
+        <datalist id="redes_visibles_lista">
+          {% for r in redes_visibles %}<option value="{{ r.ssid }}">{% endfor %}
+        </datalist>
+        {% if redes_visibles %}
+        <small>Detectadas cerca ahora: {{ redes_visibles|map(attribute='ssid')|join(', ') }}</small>
+        {% else %}
+        <small>No se detectó ninguna red cerca en este momento — podés escribir el nombre igual.</small>
+        {% endif %}
+
+        <label for="red_password">Contraseña</label>
+        <input type="password" id="red_password" name="password" placeholder="Vacío si es una red abierta" maxlength="63">
+
+        <button type="submit">Guardar red</button>
+      </form>
+      <a href="{{ url_for('index') }}" class="link-recargar">🔄 Volver a buscar redes cercanas</a>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2 class="titulo-grupo">Estado de audio</h2>
+    <div class="audio-estado">
+      <div class="audio-item">
+        <span class="audio-icono">🔊</span>
+        <div class="audio-info">
+          <div class="audio-nombre">{{ audio.salida.nombre or 'Sin dispositivo' }}</div>
+          <div class="audio-sub">Salida (bocina) — {{ audio.salida.estado or ('conectada' if audio.salida.conectado else 'desconectada') }}</div>
+        </div>
+        <span class="audio-punto {{ 'audio-punto-ok' if audio.salida.conectado else 'audio-punto-off' }}"></span>
+      </div>
+      <div class="audio-item">
+        <span class="audio-icono">🎙️</span>
+        <div class="audio-info">
+          <div class="audio-nombre">{{ audio.entrada.nombre or 'Sin dispositivo' }}</div>
+          <div class="audio-sub">Entrada (micrófono) — {{ audio.entrada.estado or ('activa' if audio.entrada.conectado else 'inactiva') }}</div>
+        </div>
+        <span class="audio-punto {{ 'audio-punto-ok' if audio.entrada.conectado else 'audio-punto-off' }}"></span>
+      </div>
+    </div>
+    <button type="button" class="btn-secundario" onclick="alert('Agregar otro dispositivo de audio todavía no está disponible. Por ahora usa el que ya está conectado.')">+ Agregar dispositivo de audio</button>
+  </div>
+  </div>
 </div>
 <script>
   // Mapea el valor del slider al nombre del preset mas cercano -- misma
@@ -374,6 +517,42 @@
   });
 
   renderFrases();
+
+  // Combo de redes wifi: si la seleccionada es la principal, se muestra
+  // solo el aviso de que esta protegida. Si es una de respaldo, se
+  // muestran los formularios de editar (SSID + password nueva) y eliminar,
+  // precargados con esa red -- el bloqueo real de la principal sigue
+  // siendo del lado del servidor en red.py, esto es solo para no ofrecer
+  // la opcion en la interfaz.
+  function actualizarAccionRed() {
+    var sel = document.getElementById('red_select');
+    var avisoPrincipal = document.getElementById('red_principal_aviso');
+    var formEditar = document.getElementById('form_editar_red');
+    var formEliminar = document.getElementById('form_eliminar_red');
+
+    if (!sel || !sel.value) {
+      avisoPrincipal.style.display = 'none';
+      formEditar.style.display = 'none';
+      formEliminar.style.display = 'none';
+      return;
+    }
+
+    var opt = sel.options[sel.selectedIndex];
+    var esPrincipal = opt.dataset.principal === '1';
+
+    avisoPrincipal.style.display = esPrincipal ? 'block' : 'none';
+    formEditar.style.display = esPrincipal ? 'none' : 'block';
+    formEliminar.style.display = esPrincipal ? 'none' : 'block';
+
+    if (!esPrincipal) {
+      document.getElementById('red_editar_nombre_actual').value = sel.value;
+      document.getElementById('red_editar_ssid').value = sel.value;
+      document.getElementById('red_editar_password').value = '';
+      document.getElementById('red_eliminar_nombre').value = sel.value;
+      document.getElementById('btn_eliminar_red').textContent = 'Eliminar "' + sel.value + '"';
+    }
+  }
+  actualizarAccionRed();
 </script>
 </body>
 </html>

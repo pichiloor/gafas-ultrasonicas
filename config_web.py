@@ -15,6 +15,7 @@ from flask import Flask, request, redirect, url_for, session, render_template
 
 from logger import get_logger
 from config import CONFIG_PATH, VOCES, NIVELES_DETALLE, _validar, MODOS_RESERVADOS, DESCRIPCIONES_MODOS
+import red
 
 log = get_logger("config_web")
 
@@ -77,10 +78,52 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/red/agregar", methods=["POST"])
+@login_required
+def red_agregar():
+    """Guarda una red wifi nueva (sin conectarse ni tocar la red activa,
+    ver red.agregar_red). No renderiza directo -- redirige a index() para
+    evitar que un refresh de pagina reenvie el formulario."""
+    ok, msg = red.agregar_red(request.form.get("ssid", ""), request.form.get("password", ""))
+    session["flash"] = msg
+    if not ok:
+        log.warning(f"Fallo al agregar red desde la web: {msg}")
+    return redirect(url_for("index"))
+
+
+@app.route("/red/modificar", methods=["POST"])
+@login_required
+def red_modificar():
+    """Cambia SSID y/o contraseña de una red de respaldo. red.modificar_red()
+    bloquea del lado del servidor si es la conexion activa."""
+    ok, msg = red.modificar_red(
+        request.form.get("nombre_actual", ""),
+        request.form.get("ssid", ""),
+        request.form.get("password", ""),
+    )
+    session["flash"] = msg
+    if not ok:
+        log.warning(f"Fallo al modificar red desde la web: {msg}")
+    return redirect(url_for("index"))
+
+
+@app.route("/red/eliminar", methods=["POST"])
+@login_required
+def red_eliminar():
+    """Elimina una red guardada. red.eliminar_red() bloquea del lado del
+    servidor si es la conexion activa -- no depende de que el HTML no
+    muestre el boton, por si alguien arma el request a mano."""
+    ok, msg = red.eliminar_red(request.form.get("nombre", ""))
+    session["flash"] = msg
+    if not ok:
+        log.warning(f"Fallo al eliminar red desde la web: {msg}")
+    return redirect(url_for("index"))
+
+
 @app.route("/", methods=["GET", "POST"])
 @login_required
 def index():
-    mensaje = None
+    mensaje = session.pop("flash", None)
     if request.method == "POST":
         nuevo = {
             "nombre_usuario": request.form.get("nombre_usuario", ""),
@@ -114,6 +157,13 @@ def index():
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         cfg = json.load(f)
 
+    # Separada aca (no en el template) para que el HTML no tenga que andar
+    # filtrando cual es la activa -- red.py ya la marca, esto solo la separa
+    # del resto para que la web la muestre distinto (protegida vs. respaldo).
+    redes = red.listar_redes_guardadas()
+    red_principal = next((r["nombre"] for r in redes if r["activa"]), None)
+    otras_redes = [r for r in redes if not r["activa"]]
+
     return render_template(
         "config.html",
         cfg=cfg,
@@ -128,6 +178,10 @@ def index():
         # modo -- el JS del panel solo necesita saber "esta reservada o
         # no", no a que modo pertenece cada una.
         frases_reservadas_flat=[f for frases in MODOS_RESERVADOS.values() for f in frases],
+        red_principal=red_principal,
+        otras_redes=otras_redes,
+        redes_visibles=red.listar_redes_visibles(),
+        audio=red.estado_audio(),
     )
 
 
