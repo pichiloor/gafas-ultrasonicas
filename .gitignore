@@ -21,3 +21,7 @@ vision_mix_cloud.py
 
 # Scripts descartados de versiones anteriores + backups temporales
 old/
+
+# Backups temporales con timestamp (ej. config.html.bak-rescan-20260806191556),
+# dejados junto al archivo real antes de cada despliegue -- nunca deben commitearse
+*.bak-*

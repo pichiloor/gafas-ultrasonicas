@@ -20,6 +20,7 @@ las de solo lectura (listar, escanear, ver estado de audio).
 """
 import re
 import subprocess
+import time
 from logger import get_logger
 
 log = get_logger("red")
@@ -54,22 +55,71 @@ def _conexion_activa():
     return None
 
 
+def _tabla_señales():
+    """Señal (0-100) de TODAS las redes visibles ahora mismo en el scan,
+    esten guardadas o no -- separado de listar_redes_visibles() (que
+    descarta las ya guardadas) porque esta tabla se usa justo para lo
+    contrario: mostrarle intensidad de señal a las redes YA guardadas que
+    ademas esten al alcance ahora. Solo lectura, no requiere sudo."""
+    r = _nmcli(["-t", "-f", "SSID,SIGNAL", "device", "wifi", "list"])
+    if r.returncode != 0:
+        log.warning(f"No se pudo escanear señal de redes: {r.stderr.strip()}")
+        return {}
+    tabla = {}
+    for linea in r.stdout.strip().splitlines():
+        partes = linea.split(":")
+        if len(partes) < 2 or not partes[0]:
+            continue
+        ssid, señal = partes[0], partes[1]
+        señal_num = int(señal) if señal.isdigit() else 0
+        # Si el mismo SSID aparece repetido (varios puntos de acceso),
+        # se queda con la señal mas fuerte vista.
+        if ssid not in tabla or señal_num > tabla[ssid]:
+            tabla[ssid] = señal_num
+    return tabla
+
+
+def _barras(señal):
+    """Convierte 0-100 a una cantidad de barras 0-4 para el icono. None si
+    la red no aparecio en el scan ahora mismo (fuera de alcance o guardada
+    pero nunca detectada en esta pasada) -- en ese caso el icono se pinta
+    apagado en vez de inventar un valor."""
+    if señal is None:
+        return None
+    if señal >= 75:
+        return 4
+    if señal >= 50:
+        return 3
+    if señal >= 25:
+        return 2
+    if señal > 0:
+        return 1
+    return 0
+
+
 def listar_redes_guardadas():
-    """Redes wifi guardadas en NetworkManager, con la activa marcada.
-    Solo lectura, no requiere sudo."""
+    """Redes wifi guardadas en NetworkManager, con la activa marcada y,
+    si esta al alcance ahora mismo, su señal actual (0-100) y barras
+    (0-4, o None si no se detecto en el scan). Solo lectura, no requiere
+    sudo."""
     activa = _conexion_activa()
     r = _nmcli(["-t", "-f", "NAME,TYPE,AUTOCONNECT-PRIORITY", "connection", "show"])
     if r.returncode != 0:
         log.warning(f"No se pudieron listar redes guardadas: {r.stderr.strip()}")
         return []
+    tabla_señal = _tabla_señales()
     redes = []
     for linea in r.stdout.strip().splitlines():
         partes = linea.split(":")
         if len(partes) >= 3 and partes[1] == "802-11-wireless":
+            nombre = partes[0]
+            señal = tabla_señal.get(nombre)
             redes.append({
-                "nombre": partes[0],
+                "nombre": nombre,
                 "prioridad": partes[2],
-                "activa": partes[0] == activa,
+                "activa": nombre == activa,
+                "señal": señal,
+                "barras": _barras(señal),
             })
     redes.sort(key=lambda red: not red["activa"])
     return redes
@@ -97,6 +147,30 @@ def listar_redes_visibles():
         if ssid not in vistas or señal_num > vistas[ssid]["señal"]:
             vistas[ssid] = {"ssid": ssid, "señal": señal_num, "abierta": seguridad == ""}
     return sorted(vistas.values(), key=lambda r: -r["señal"])
+
+
+def rescan_wifi():
+    """Dispara un escaneo activo real de NetworkManager -- a diferencia de
+    listar_redes_visibles()/_tabla_señales(), que solo LEEN la ultima
+    tabla que NetworkManager ya tenia cacheada de su propio ciclo de fondo
+    (puede tener minutos de atraso). Esto pide una vuelta de radio nueva
+    de verdad. No modifica ninguna conexion guardada (solo lectura desde
+    ese punto de vista), pero a diferencia de "device wifi list" (lectura
+    de la tabla ya escaneada, permitida sin permisos), pedir un escaneo
+    nuevo SI requiere el permiso de NetworkManager "wifi.scan" -- probado
+    en vivo, pichiloor no lo tiene sin sudo ("not authorized"), asi que va
+    con sudo igual que agregar/modificar/eliminar red. Devuelve False (no
+    es grave) si NetworkManager lo rechaza igual por haberse pedido uno
+    hace muy poco (lo rate-limitea de su lado)."""
+    r = _nmcli(["device", "wifi", "rescan"], usar_sudo=True)
+    if r.returncode != 0:
+        log.warning(f"No se pudo reescanear wifi (puede ser normal si se pidio hace poco): {r.stderr.strip()}")
+        return False
+    # El rescan es asincronico del lado de NetworkManager -- esta pausa
+    # corta le da tiempo a completar antes de que index() vuelva a listar,
+    # sin la cual seguiria devolviendo la tabla vieja.
+    time.sleep(3)
+    return True
 
 
 def agregar_red(ssid, password):

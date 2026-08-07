@@ -17,6 +17,9 @@
     --ok-text: #15803d;
     --verde: #52b788;
     --verde-dark: #3f9c72;
+    --rojo: #d92d20;
+    --rojo-bg: #fef2f2;
+    --rojo-borde: #fecaca;
   }
   * { box-sizing: border-box; }
   body {
@@ -50,12 +53,18 @@
       align-items: stretch;
     }
     .grid-2col .card { display: flex; flex-direction: column; }
-    /* Variante para pares de tarjetas con contenido muy distinto en
-       altura (Red WiFi vs. Estado de audio) -- sin esto, .grid-2col
-       estira la mas corta para igualar a la mas alta, dejando un hueco
-       vacio raro. Con align-items:start cada una queda con su alto
-       natural, alineadas arriba. */
-    .grid-2col-topo { align-items: start; }
+    /* Red WiFi y Estado de audio quedan de igual alto (align-items:stretch
+       del .grid-2col de arriba se encarga) y con el boton de "agregar"
+       siempre pegado abajo en ambas -- .btn-pie empuja con margin-top:auto
+       dentro del flex column de la tarjeta, asi la mas corta no se ve
+       chica/descuadrada al lado de la mas larga. */
+    .btn-pie { margin-top: auto; }
+    /* Doble clase a proposito (mas especifico que .fila-agregar-linea
+       solo) para ganarle SIEMPRE al margin-top:22px de mas abajo, sin
+       importar el orden en la hoja de estilos -- la fila que envuelve
+       "Agregar red nueva" + el boton de reescanear necesita el margen fijo
+       en mobile pero el empuje automatico aca en desktop. */
+    .fila-agregar-linea.btn-pie { margin-top: auto; }
     .logo-tes-chico { height: 64px; }
   }
   .titulo-grupo {
@@ -186,21 +195,97 @@
   .menu-modo-desc { font-size: 0.85rem; color: var(--label); }
   .agregar-frase { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
   .agregar-frase input { flex: 1; }
-  .agregar-frase button {
+  /* Circulo verde reutilizable para toda accion de "agregar" del panel
+     (frase de saludo, red nueva, dispositivo de audio) -- mismo boton en
+     los tres lugares, consistente. */
+  .btn-circulo-verde {
     width: 44px;
     height: 44px;
     flex-shrink: 0;
     margin-top: 0;
     padding: 0;
+    border: none;
     border-radius: 50%;
     background: var(--verde);
+    color: #fff;
     font-size: 1.4rem;
     line-height: 1;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: pointer;
   }
-  .agregar-frase button:active { background: var(--verde-dark); }
+  .btn-circulo-verde:active { background: var(--verde-dark); }
+  /* Fila clicable de "agregar" (red nueva / dispositivo de audio): sin
+     recuadro propio, solo el circulo verde + texto -- es un <button>
+     entero (no solo el circulo) para que el area clicable sea grande,
+     pero visualmente no se ve como una caja aparte. */
+  .fila-agregar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 8px 4px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text);
+    font-size: 0.92rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
+  .fila-agregar:active { background: #f9fafb; }
+  /* Fila que junta "+ Agregar una red nueva" con el boton de reescanear
+     (circular, al lado) -- .fila-agregar deja de forzar 100% de ancho aca
+     adentro para dejarle lugar al icono; btn-pie se movio a esta fila
+     (no a .fila-agregar) para que el empuje "pegado abajo" del flex
+     column de la tarjeta siga funcionando igual que en Estado de audio. */
+  /* margin-top:22px se movio ACA (de .fila-agregar al wrapper) -- adentro
+     de la fila, .fila-agregar y el boton de rescan tienen que quedar sin
+     margen propio para que align-items:center los centre bien entre si;
+     el espacio de separacion con la lista de redes de arriba lo pone el
+     wrapper una sola vez. */
+  .fila-agregar-linea { display: flex; align-items: center; gap: 8px; margin-top: 22px; }
+  .fila-agregar-linea .fila-agregar { width: auto; flex: 1; min-width: 0; margin-top: 0; }
+  .fila-agregar-linea form { margin: 0; }
+  /* Iconos pequeños de accion por fila (editar/eliminar una red, o
+     reescanear redes cercanas) -- cuadrados con esquina redondeada en vez
+     de circulos, para diferenciarse a simple vista del circulo verde de
+     "agregar". */
+  .red-acciones { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    margin-top: 0;
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .icon-btn-editar { color: var(--accent-dark); }
+  .icon-btn-editar:active { background: #eef2ff; border-color: #d6e0fb; }
+  .icon-btn-eliminar { color: var(--rojo); }
+  .icon-btn-eliminar:active { background: var(--rojo-bg); border-color: var(--rojo-borde); }
+  .icon-btn-rescan { color: var(--label); }
+  .icon-btn-rescan:active { background: #f3f4f6; }
+  .cancelar-edicion {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 0.82rem;
+    color: var(--label);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
   .mensaje {
     background: var(--ok-bg);
     color: var(--ok-text);
@@ -220,33 +305,13 @@
     font-family: inherit;
   }
   select:focus { outline: none; border-color: var(--accent); background: #fff; }
-  .btn-secundario {
-    background: #fff;
-    color: var(--text);
-    border: 1px solid #d5dae3;
-  }
-  .btn-secundario:active { background: #f3f4f6; }
-  .btn-secundario:disabled { color: #9aa1ac; cursor: not-allowed; }
-  details.agregar-red-toggle {
-    margin-top: 18px;
+  /* Panel del formulario "agregar red nueva", colgado de .fila-agregar
+     (igual que "+ Agregar dispositivo de audio") en vez de un
+     <details>/<summary> -- el panel solo se ve al togglear via JS. */
+  .agregar-red-panel {
+    margin-top: 14px;
     border-top: 1px solid var(--border);
     padding-top: 14px;
-  }
-  details.agregar-red-toggle summary {
-    cursor: pointer;
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: var(--accent-dark);
-    list-style: none;
-  }
-  details.agregar-red-toggle summary::-webkit-details-marker { display: none; }
-  details.agregar-red-toggle[open] summary { margin-bottom: 4px; }
-  .link-recargar {
-    display: inline-block;
-    margin-top: 14px;
-    font-size: 0.82rem;
-    color: var(--label);
-    text-decoration: none;
   }
   .audio-estado { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
   .audio-item {
@@ -265,6 +330,13 @@
   .audio-punto { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .audio-punto-ok { background: var(--verde); }
   .audio-punto-off { background: #d1d5db; }
+  /* Filas de red WiFi: mismo look que .audio-item (Estado de audio), pero
+     ademas seleccionables -- se usan para elegir cual red editar/eliminar,
+     en vez del <select> nativo que tenian antes. */
+  /* Barras de señal wifi, vector inline (0-4 rects crecientes) -- ninguna
+     imagen/fuente de icono externa, unos bytes de SVG por fila. Apagadas
+     (gris) cuando la red no aparecio en el ultimo scan (señal=None). */
+  .wifi-señal { flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -345,7 +417,7 @@
       <div id="chips_frases" class="chips" style="margin-top: 10px;"></div>
       <div id="agregar_wrap" class="agregar-frase">
         <input type="text" id="nueva_frase" placeholder="Ej: hola gafas">
-        <button type="button" onclick="agregarFrase()" aria-label="Agregar frase">+</button>
+        <button type="button" class="btn-circulo-verde" onclick="agregarFrase()" aria-label="Agregar frase">+</button>
       </div>
       <small id="frases_limite" style="display:none">Máximo 5 frases — quita una para agregar otra.</small>
     </div>
@@ -353,52 +425,103 @@
     <button type="submit">Guardar y aplicar</button>
   </form>
 
-  <div class="grid-2col grid-2col-topo">
+  {% macro barras_wifi(barras) %}
+  <svg class="wifi-señal" width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
+    {% for i in range(4) %}
+    {% set alto = (i + 1) * 3 + 1 %}
+    <rect x="{{ i * 4 }}" y="{{ 14 - alto }}" width="3" height="{{ alto }}" rx="1" fill="{{ '#52b788' if barras is not none and i < barras else '#d1d5db' }}"></rect>
+    {% endfor %}
+  </svg>
+  {% endmacro %}
+
+  <div class="grid-2col">
   <div class="card">
     <h2 class="titulo-grupo">Red WiFi</h2>
     <small>La marcada como "Principal" está protegida: no se puede editar ni eliminar desde acá, para no perder la conexión. Las demás son respaldo — se usan solo si la principal no está disponible.</small>
 
-    <label for="red_select">Conexiones guardadas</label>
-    <select id="red_select" onchange="actualizarAccionRed()">
+    <label>Conexiones guardadas</label>
+    <div class="audio-estado" id="red_lista">
       {% if red_principal %}
-      <option value="{{ red_principal }}" data-principal="1">{{ red_principal }} — Principal, conectada ahora</option>
+      <div class="audio-item">
+        {{ barras_wifi(red_principal.barras) }}
+        <div class="audio-info">
+          <div class="audio-nombre">{{ red_principal.nombre }}</div>
+          <div class="audio-sub">Principal — protegida, conectada ahora</div>
+        </div>
+        <span class="audio-punto audio-punto-ok" title="Conectada ahora"></span>
+      </div>
       {% endif %}
       {% for r in otras_redes %}
-      <option value="{{ r.nombre }}">{{ r.nombre }} — Respaldo</option>
+      <div class="audio-item">
+        {{ barras_wifi(r.barras) }}
+        <div class="audio-info">
+          <div class="audio-nombre">{{ r.nombre }}</div>
+          <div class="audio-sub">{{ 'Respaldo' if r.barras is not none else 'Respaldo — fuera de alcance ahora' }}</div>
+        </div>
+        <div class="red-acciones">
+          <button type="button" class="icon-btn icon-btn-editar" data-accion="editar" data-nombre="{{ r.nombre }}" aria-label="Editar {{ r.nombre }}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
+          </button>
+          <button type="button" class="icon-btn icon-btn-eliminar" data-accion="eliminar" data-nombre="{{ r.nombre }}" aria-label="Eliminar {{ r.nombre }}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+          </button>
+        </div>
+        <span class="audio-punto audio-punto-off" title="No conectada"></span>
+      </div>
       {% endfor %}
       {% if not red_principal and not otras_redes %}
-      <option value="" disabled selected>No hay redes guardadas</option>
+      <div class="audio-item">
+        {{ barras_wifi(none) }}
+        <div class="audio-info">
+          <div class="audio-nombre">No hay redes guardadas</div>
+        </div>
+      </div>
       {% endif %}
-    </select>
+    </div>
 
-    <small id="red_principal_aviso" style="display:none;">Esta es tu red principal — protegida, no se puede editar ni eliminar desde acá.</small>
-
-    <form method="post" action="{{ url_for('red_modificar') }}" id="form_editar_red">
+    <form method="post" action="{{ url_for('red_modificar') }}" id="form_editar_red" style="display:none; margin-top:14px;">
       <input type="hidden" name="nombre_actual" id="red_editar_nombre_actual">
       <label for="red_editar_ssid">Nombre de la red (SSID)</label>
       <input type="text" id="red_editar_ssid" name="ssid" maxlength="32" required>
       <label for="red_editar_password">Contraseña nueva</label>
       <input type="password" id="red_editar_password" name="password" placeholder="Dejar vacío para no cambiarla" maxlength="63">
       <button type="submit">Guardar cambios</button>
+      <button type="button" class="cancelar-edicion" onclick="cancelarEdicionRed()">Cancelar</button>
     </form>
 
-    <form method="post" action="{{ url_for('red_eliminar') }}" id="form_eliminar_red" onsubmit="return confirm('¿Eliminar la red \'' + document.getElementById('red_select').value + '\'?');">
+    <form method="post" action="{{ url_for('red_eliminar') }}" id="form_eliminar_red" style="display:none;">
       <input type="hidden" name="nombre" id="red_eliminar_nombre">
-      <button type="submit" id="btn_eliminar_red" class="btn-secundario">Eliminar esta red</button>
     </form>
 
-    <details class="agregar-red-toggle">
-      <summary>+ Agregar una red nueva</summary>
+    <div class="fila-agregar-linea btn-pie">
+      <button type="button" class="fila-agregar" id="btn_agregar_red_toggle" onclick="toggleAgregarRed()">
+        <span class="btn-circulo-verde" id="icono_agregar_red" aria-hidden="true">+</span>
+        <span id="texto_agregar_red">Agregar una red nueva</span>
+      </button>
+      <form method="post" action="{{ url_for('red_rescan') }}">
+        <button type="submit" class="icon-btn icon-btn-rescan" aria-label="Buscar redes cercanas de nuevo" title="Buscar redes cercanas de nuevo">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        </button>
+      </form>
+    </div>
+
+    <div class="agregar-red-panel" id="agregar_red_panel" style="display:none;">
       <form method="post" action="{{ url_for('red_agregar') }}">
-        <label for="red_ssid">Nombre de la red (SSID)</label>
-        <input type="text" id="red_ssid" name="ssid" list="redes_visibles_lista" placeholder="Elegí una detectada o escribí el nombre" maxlength="32" required>
-        <datalist id="redes_visibles_lista">
-          {% for r in redes_visibles %}<option value="{{ r.ssid }}">{% endfor %}
-        </datalist>
         {% if redes_visibles %}
-        <small>Detectadas cerca ahora: {{ redes_visibles|map(attribute='ssid')|join(', ') }}</small>
+        <label for="red_ssid_select">Red detectada cerca</label>
+        <select id="red_ssid_select" name="ssid" required>
+          <option value="" disabled selected>Elegí una red...</option>
+          {% for r in redes_visibles[:5] %}
+          <option value="{{ r.ssid }}">{{ r.ssid }}{{ ' (abierta)' if r.abierta else '' }}</option>
+          {% endfor %}
+          <option value="__manual__">✏️ Escribir otro nombre...</option>
+        </select>
+        <input type="text" id="red_ssid_manual" name="ssid" placeholder="Nombre de la red (SSID)" maxlength="32" required disabled style="display:none; margin-top:10px;">
+        <small id="red_ssid_volver" style="display:none;"><a href="#" onclick="volverASelectRed(); return false;">← Elegir de la lista de nuevo</a></small>
         {% else %}
-        <small>No se detectó ninguna red cerca en este momento — podés escribir el nombre igual.</small>
+        <label for="red_ssid_solo">Nombre de la red (SSID)</label>
+        <input type="text" id="red_ssid_solo" name="ssid" placeholder="No se detectó ninguna red cerca — escribí el nombre" maxlength="32" required>
+        <small>No se detectó ninguna red cerca en este momento — probá el botón 🔄 de arriba, o escribí el nombre igual.</small>
         {% endif %}
 
         <label for="red_password">Contraseña</label>
@@ -406,8 +529,7 @@
 
         <button type="submit">Guardar red</button>
       </form>
-      <a href="{{ url_for('index') }}" class="link-recargar">🔄 Volver a buscar redes cercanas</a>
-    </details>
+    </div>
   </div>
 
   <div class="card">
@@ -430,7 +552,10 @@
         <span class="audio-punto {{ 'audio-punto-ok' if audio.entrada.conectado else 'audio-punto-off' }}"></span>
       </div>
     </div>
-    <button type="button" class="btn-secundario" onclick="alert('Agregar otro dispositivo de audio todavía no está disponible. Por ahora usa el que ya está conectado.')">+ Agregar dispositivo de audio</button>
+    <button type="button" class="fila-agregar btn-pie" onclick="alert('Agregar otro dispositivo de audio todavía no está disponible. Por ahora usa el que ya está conectado.')">
+      <span class="btn-circulo-verde" aria-hidden="true">+</span>
+      Agregar dispositivo de audio
+    </button>
   </div>
   </div>
 </div>
@@ -518,41 +643,88 @@
 
   renderFrases();
 
-  // Combo de redes wifi: si la seleccionada es la principal, se muestra
-  // solo el aviso de que esta protegida. Si es una de respaldo, se
-  // muestran los formularios de editar (SSID + password nueva) y eliminar,
-  // precargados con esa red -- el bloqueo real de la principal sigue
-  // siendo del lado del servidor en red.py, esto es solo para no ofrecer
-  // la opcion en la interfaz.
-  function actualizarAccionRed() {
-    var sel = document.getElementById('red_select');
-    var avisoPrincipal = document.getElementById('red_principal_aviso');
-    var formEditar = document.getElementById('form_editar_red');
-    var formEliminar = document.getElementById('form_eliminar_red');
-
-    if (!sel || !sel.value) {
-      avisoPrincipal.style.display = 'none';
-      formEditar.style.display = 'none';
-      formEliminar.style.display = 'none';
-      return;
-    }
-
-    var opt = sel.options[sel.selectedIndex];
-    var esPrincipal = opt.dataset.principal === '1';
-
-    avisoPrincipal.style.display = esPrincipal ? 'block' : 'none';
-    formEditar.style.display = esPrincipal ? 'none' : 'block';
-    formEliminar.style.display = esPrincipal ? 'none' : 'block';
-
-    if (!esPrincipal) {
-      document.getElementById('red_editar_nombre_actual').value = sel.value;
-      document.getElementById('red_editar_ssid').value = sel.value;
-      document.getElementById('red_editar_password').value = '';
-      document.getElementById('red_eliminar_nombre').value = sel.value;
-      document.getElementById('btn_eliminar_red').textContent = 'Eliminar "' + sel.value + '"';
-    }
+  // Acciones por fila de red de respaldo (lapiz = editar, basurero =
+  // eliminar) -- cada icono ya trae su "nombre" en data-nombre, sin
+  // necesidad de "seleccionar" la fila primero como antes. El bloqueo real
+  // de la principal sigue siendo del lado del servidor en red.py; ella ni
+  // siquiera tiene estos botones (no se ofrece la opcion en la interfaz).
+  function editarRed(nombre) {
+    document.getElementById('red_editar_nombre_actual').value = nombre;
+    document.getElementById('red_editar_ssid').value = nombre;
+    document.getElementById('red_editar_password').value = '';
+    var form = document.getElementById('form_editar_red');
+    form.style.display = 'block';
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById('red_editar_ssid').focus();
   }
-  actualizarAccionRed();
+
+  function cancelarEdicionRed() {
+    document.getElementById('form_editar_red').style.display = 'none';
+  }
+
+  function eliminarRed(nombre) {
+    if (!confirm('¿Eliminar la red "' + nombre + '"?')) return;
+    document.getElementById('red_eliminar_nombre').value = nombre;
+    document.getElementById('form_eliminar_red').submit();
+  }
+
+  document.querySelectorAll('.icon-btn[data-accion]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var nombre = btn.dataset.nombre;
+      if (btn.dataset.accion === 'editar') { editarRed(nombre); }
+      else { eliminarRed(nombre); }
+    });
+  });
+
+  // Panel de "agregar red nueva": antes era un <details>/<summary>, ahora
+  // es una fila con circulo verde igual a la de "+ Agregar dispositivo de
+  // audio" que togglea un panel a mano -- solo se cambia el texto/icono
+  // de sus dos <span> internos, nunca el boton entero (para no perder el
+  // circulo verde al togglear).
+  function toggleAgregarRed() {
+    var panel = document.getElementById('agregar_red_panel');
+    var icono = document.getElementById('icono_agregar_red');
+    var texto = document.getElementById('texto_agregar_red');
+    var abierto = panel.style.display !== 'none';
+    panel.style.display = abierto ? 'none' : 'block';
+    icono.textContent = abierto ? '+' : '–';
+    texto.textContent = abierto ? 'Agregar una red nueva' : 'Ocultar formulario';
+  }
+
+  // Combo "red detectada cerca" del formulario de agregar: select con las
+  // primeras 5 + opcion "escribir otro nombre". Los dos campos comparten
+  // name="ssid" y se togglean via "disabled" (un campo disabled no se
+  // manda en el POST), asi el backend no cambia -- siempre recibe un solo
+  // "ssid", venga del combo o escrito a mano.
+  var selectRed = document.getElementById('red_ssid_select');
+  if (selectRed) {
+    selectRed.addEventListener('change', function() {
+      if (this.value === '__manual__') { elegirRedManual(); }
+    });
+  }
+
+  function elegirRedManual() {
+    var sel = document.getElementById('red_ssid_select');
+    var manual = document.getElementById('red_ssid_manual');
+    sel.disabled = true;
+    sel.style.display = 'none';
+    manual.disabled = false;
+    manual.style.display = 'block';
+    manual.focus();
+    document.getElementById('red_ssid_volver').style.display = 'block';
+  }
+
+  function volverASelectRed() {
+    var sel = document.getElementById('red_ssid_select');
+    var manual = document.getElementById('red_ssid_manual');
+    manual.disabled = true;
+    manual.style.display = 'none';
+    manual.value = '';
+    sel.disabled = false;
+    sel.style.display = 'block';
+    sel.value = '';
+    document.getElementById('red_ssid_volver').style.display = 'none';
+  }
 </script>
 </body>
 </html>

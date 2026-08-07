@@ -107,6 +107,17 @@ def red_modificar():
     return redirect(url_for("index"))
 
 
+@app.route("/red/rescan", methods=["POST"])
+@login_required
+def red_rescan():
+    """Pide un escaneo wifi activo de verdad (no solo lee la ultima tabla
+    cacheada de NetworkManager) antes de volver a index() -- para el boton
+    de "buscar redes cercanas de nuevo" junto a "Agregar una red nueva"."""
+    ok = red.rescan_wifi()
+    session["flash"] = "Redes cercanas actualizadas." if ok else "No se pudo reescanear ahora mismo, se muestran las últimas detectadas."
+    return redirect(url_for("index"))
+
+
 @app.route("/red/eliminar", methods=["POST"])
 @login_required
 def red_eliminar():
@@ -160,8 +171,10 @@ def index():
     # Separada aca (no en el template) para que el HTML no tenga que andar
     # filtrando cual es la activa -- red.py ya la marca, esto solo la separa
     # del resto para que la web la muestre distinto (protegida vs. respaldo).
+    # Se pasa el dict completo (no solo el nombre) para tener tambien
+    # "barras"/"señal" disponibles en el template.
     redes = red.listar_redes_guardadas()
-    red_principal = next((r["nombre"] for r in redes if r["activa"]), None)
+    red_principal = next((r for r in redes if r["activa"]), None)
     otras_redes = [r for r in redes if not r["activa"]]
 
     return render_template(
